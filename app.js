@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const apiRoutes = require('./routes/api');
+const apiRoutes = require('./routes/orderRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -18,7 +18,7 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use('/api', apiRoutes);
+app.use('/api/order', apiRoutes);
 
 // 404 Handler
 app.use((req, res) => {
