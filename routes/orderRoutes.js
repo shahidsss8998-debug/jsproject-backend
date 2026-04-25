@@ -29,6 +29,7 @@ const sendEmail = async (to, subject, html) => {
 
 // GET /api/order/test -> Simple test route to confirm backend is working
 router.get('/test', (req, res) => {
+  console.log('GET /api/order/test hit - Testing backend health');
   res.json({ 
     message: 'Backend is working!', 
     timestamp: new Date().toISOString(),
@@ -38,6 +39,7 @@ router.get('/test', (req, res) => {
 
 // POST /api/order/send-order -> Send order to admin
 router.post('/send-order', async (req, res) => {
+  console.log('POST /api/order/send-order hit - Sending order email');
   try {
     console.log("REQUEST BODY:", req.body);
     const { name, emails, phone, place, date, time, cartItems, totalAmount } = req.body;
@@ -127,6 +129,7 @@ const extractOrderParams = (req) => {
 };
 
 const sendApprovalResponse = async (req, res) => {
+  console.log(`${req.method} /api/order/approve hit - Method: ${req.method}, Params:`, extractOrderParams(req));
   try {
     const { emails, name, date, time, place } = extractOrderParams(req);
     const emailsArray = emails ? emails.split(',') : [];
@@ -182,6 +185,7 @@ router.post('/approve', sendApprovalResponse);
 
 // POST /api/order/reject -> Reject order and notify customers
 const sendRejectResponse = async (req, res) => {
+  console.log(`${req.method} /api/order/reject hit - Method: ${req.method}, Params:`, extractOrderParams(req));
   try {
     const { emails, name, date, time } = extractOrderParams(req);
     const emailsArray = emails ? emails.split(',') : [];
