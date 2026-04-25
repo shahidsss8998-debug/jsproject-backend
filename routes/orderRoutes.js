@@ -27,18 +27,13 @@ const sendEmail = async (to, subject, html) => {
   }
 };
 
-// GET /api/order/test-email -> Test email functionality
-router.get('/test-email', async (req, res) => {
-  try {
-    const success = await sendEmail(process.env.EMAIL_USER, 'Test Email from Spoonful', '<h1>This is a test email</h1><p>If you see this, your email configuration is working correctly!</p>');
-    if (success) {
-      res.json({ message: 'Test email sent successfully to ' + process.env.EMAIL_USER });
-    } else {
-      res.status(500).json({ message: 'Failed to send test email. Check your EMAIL_USER and EMAIL_PASS.' });
-    }
-  } catch (error) {
-    res.status(500).json({ message: 'Internal server error', error: error.message });
-  }
+// GET /api/order/test -> Simple test route to confirm backend is working
+router.get('/test', (req, res) => {
+  res.json({ 
+    message: 'Backend is working!', 
+    timestamp: new Date().toISOString(),
+    routes: ['/api/order/test', '/api/order/send-order', '/api/order/approve', '/api/order/reject', '/api/order/test-email']
+  });
 });
 
 // POST /api/order/send-order -> Send order to admin
