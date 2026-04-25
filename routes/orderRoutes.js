@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const emailService = require('../services/emailService');
+const Menu = require('../models/Menu');
 
 // Define BASE_URL with strict production fallback
 const BASE_URL = process.env.BASE_URL || 'https://spoonful-backend.onrender.com';
@@ -8,22 +9,46 @@ const BASE_URL = process.env.BASE_URL || 'https://spoonful-backend.onrender.com'
 console.log('🌐 Production BASE_URL:', BASE_URL);
 
 // GET /api/order/test -> Simple test route to confirm backend is working
-router.get('/test', (req, res) => {
+router.get('/order/test', (req, res) => {
   console.log('GET /api/order/test hit - Testing backend health');
   res.json({
     message: 'Backend is working!',
     timestamp: new Date().toISOString(),
-    routes: ['/api/order/test', '/api/order/send-order', '/api/order/approve', '/api/order/reject', '/api/order/test-email']
+    routes: ['/api/order/test', '/api/order/send-order', '/api/order/approve', '/api/order/reject', '/api/menu']
   });
 });
 
+// Hardcoded menu fallback data
+const fallbackMenu = [
+  { name: "Truffle Mushroom Risotto", description: "Creamy Arborio rice with wild mushrooms and black truffle oil.", price: 450, category: "Main Course", image: "https://images.unsplash.com/photo-1476124369491-e7addf5db371?q=80&w=800", isFeatured: true },
+  { name: "Crispy Calamari", description: "Freshly battered calamari served with spicy marinara sauce.", price: 320, category: "Starters", image: "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?q=80&w=800", isFeatured: true },
+  { name: "Pan-Seared Salmon", description: "Atlantic salmon with asparagus and lemon-butter sauce.", price: 580, category: "Main Course", image: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?q=80&w=800", isFeatured: false },
+  { name: "Signature Tiramisu", description: "Espresso-soaked ladyfingers with whipped mascarpone and cocoa.", price: 280, category: "Desserts", image: "https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?q=80&w=800", isFeatured: true }
+];
+
+// GET /api/menu -> Fetch all menu items
+router.get('/menu', async (req, res) => {
+  console.log('GET /api/menu hit - Fetching menu items');
+  try {
+    const items = await Menu.find({});
+    if (items && items.length > 0) {
+      console.log(`✅ Success: Found ${items.length} menu items in DB`);
+      return res.json(items);
+    }
+    console.warn('⚠️ Warning: No items found in DB, using fallback');
+    res.json(fallbackMenu);
+  } catch (error) {
+    console.error('❌ Database error fetching menu:', error.message);
+    console.log('💡 Serving fail-safe fallback menu');
+    res.json(fallbackMenu);
+  }
+});
+
 // POST /api/order/send-order -> Send order to admin
-router.post('/send-order', async (req, res) => {
+router.post('/order/send-order', async (req, res) => {
   console.log('POST /api/order/send-order hit - Sending order email');
   try {
-    console.log("REQUEST BODY:", req.body);
     const { name, emails, phone, place, date, time, cartItems, totalAmount } = req.body;
-    console.log("Place:", place);
 
     if (!place) {
       return res.status(400).json({ message: 'Place (location) is required' });
@@ -94,15 +119,10 @@ router.post('/send-order', async (req, res) => {
     const emailResult = await emailService.sendEmail(process.env.EMAIL_USER, `New Order from ${name}`, adminHtml);
 
     if (emailResult.success) {
-      console.log(`✅ Order email successfully sent to admin: ${process.env.EMAIL_USER}`);
-      return res.status(200).json({
-        message: 'Order sent to admin successfully'
-      });
+      return res.status(200).json({ message: 'Order sent to admin successfully' });
     } else {
-      // FAIL-SAFE: Still return 200 but with a warning message so user knows order was recorded
-      console.error('⚠️ FAIL-SAFE TRIGGERED: Admin email failed to send:', emailResult.error);
       return res.status(200).json({
-        message: 'Order received but admin notification email failed. Please contact support.',
+        message: 'Order received but admin notification email failed.',
         warning: 'Email failure',
         error: emailResult.error
       });
@@ -113,30 +133,12 @@ router.post('/send-order', async (req, res) => {
   }
 });
 
-const extractOrderParams = (req) => {
-  return req.method === 'POST' ? req.body : req.query;
-};
-
 const sendApprovalResponse = async (req, res) => {
-  console.log('--- DEBUG: APPROVE ROUTE HIT ---');
-  console.log('QUERY PARAMS:', req.query);
-
   try {
     const { emails, name, date, time, place } = req.query;
+    const emailsArray = emails ? decodeURIComponent(emails).split(',').map(e => e.trim()).filter(e => e.length > 0) : [];
 
-    // Extract emails safely
-    const emailsArray = emails
-      ? decodeURIComponent(emails)
-        .split(',')
-        .map(e => e.trim())
-        .filter(e => e.length > 0)
-      : [];
-
-    console.log('EXTRACTED EMAILS ARRAY:', emailsArray);
-
-    // Validation
     if (emailsArray.length === 0) {
-      console.error('❌ No valid customer email found');
       return res.status(400).send('<h1>Error: No valid customer email found.</h1>');
     }
 
@@ -149,165 +151,59 @@ const sendApprovalResponse = async (req, res) => {
           <p style="font-size: 16px; line-height: 1.6; color: #374151;">
             Transaction Was Successful. Your booking for <strong>${date || 'your chosen date'}</strong> at <strong>${time || 'chosen time'}</strong> in <strong>${place || 'your chosen place'}</strong> has been <strong>Confirmed</strong>.
           </p>
-          <p style="font-size: 16px; margin-top: 20px; font-weight: bold; color: #15803d;">
-            Thank You for Visiting our Website.
-          </p>
         </div>
-        <p style="margin-top: 30px; color: #166534; opacity: 0.7; font-size: 14px;">
-          Spoonful Restaurant &bull; Culinary Excellence
-        </p>
+        <p style="margin-top: 30px; color: #166534; opacity: 0.7; font-size: 14px;">Spoonful Restaurant</p>
       </div>
     `;
 
-    // Notify each customer individually
     const emailResults = [];
     for (const email of emailsArray) {
-      try {
-        console.log(`📧 Attempting to send approval email to: ${email}`);
-        const result = await emailService.sendEmail(email, 'Your Order Successful ✅ - Spoonful Restaurant', approvalHtml);
-
-        emailResults.push({ email, success: result.success, error: result.error });
-
-        if (result.success) {
-          console.log(`✅ Success: Approval email sent to ${email}`);
-        } else {
-          console.error(`❌ Failure: Failed to send approval email to ${email}. Error: ${result.error}`);
-        }
-      } catch (error) {
-        console.error(`❌ Error sending to ${email}:`, error.message);
-        emailResults.push({ email, success: false, error: error.message });
-      }
+      const result = await emailService.sendEmail(email, 'Your Order Successful ✅', approvalHtml);
+      emailResults.push({ email, success: result.success });
     }
 
     const allSuccessful = emailResults.every(r => r.success);
-    const failedEmails = emailResults.filter(r => !r.success).map(r => r.email);
-
-
-
-    const responsePage = `
+    res.send(`
       <html>
         <body style="font-family: sans-serif; background-color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
-          <div style="background: white; padding: 50px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); text-align: center; border-top: 8px solid #22c55e;">
-            <div style="font-size: 70px; margin-bottom: 20px;">${allSuccessful ? '✅' : '⚠️'}</div>
-            <h1 style="color: #1e293b; margin-bottom: 10px;">${allSuccessful ? 'Order Approved' : 'Approved with Warnings'}</h1>
-            <p style="color: #64748b; font-size: 18px;">
-              ${allSuccessful
-        ? 'Success! The customer has been notified via email.'
-        : `Order was approved, but emails failed to reach: ${failedEmails.join(', ')}`}
-            </p>
-            <div style="margin-top: 30px;">
-              <a href="javascript:window.close()" style="color: #22c55e; font-weight: bold; text-decoration: none;">Close Tab</a>
-            </div>
+          <div style="background: white; padding: 50px; border-radius: 20px; text-align: center; border-top: 8px solid #22c55e;">
+            <h1>${allSuccessful ? 'Order Approved' : 'Approved with Warnings'}</h1>
+            <p>The customer has been notified.</p>
+            <a href="javascript:window.close()">Close Tab</a>
           </div>
         </body>
       </html>
-    `;
-
-    res.send(responsePage);
+    `);
   } catch (error) {
-    console.error('Approve error:', error);
     res.status(500).send('<h1>Internal server error.</h1>');
   }
 };
 
-router.get('/approve', sendApprovalResponse);
-router.post('/approve', sendApprovalResponse);
+router.get('/order/approve', sendApprovalResponse);
+router.post('/order/approve', sendApprovalResponse);
 
-// POST /api/order/reject -> Reject order and notify customers
 const sendRejectResponse = async (req, res) => {
-  console.log('--- DEBUG: REJECT ROUTE HIT ---');
-  console.log('QUERY PARAMS:', req.query);
-
   try {
-    const { emails, name, date, time } = req.query;
+    const { emails, name, date } = req.query;
+    const emailsArray = emails ? decodeURIComponent(emails).split(',').map(e => e.trim()).filter(e => e.length > 0) : [];
 
-    // Extract emails safely
-    const emailsArray = emails
-      ? decodeURIComponent(emails)
-        .split(',')
-        .map(e => e.trim())
-        .filter(e => e.length > 0)
-      : [];
-
-    console.log('EXTRACTED EMAILS ARRAY:', emailsArray);
-
-    // Validation
     if (emailsArray.length === 0) {
-      console.error('❌ No valid customer email found');
       return res.status(400).send('<h1>Error: No valid customer email found.</h1>');
     }
 
-    const rejectionHtml = `
-      <div style="background-color: #fef2f2; color: #991b1b; padding: 40px; font-family: sans-serif; border-radius: 16px; border: 1px solid #fecaca; text-align: center; max-width: 600px; margin: 20px auto;">
-        <div style="font-size: 60px; margin-bottom: 20px;">❌</div>
-        <h1 style="color: #b91c1c; margin-bottom: 10px;">Order Rejected</h1>
-        <p style="font-size: 18px; margin-bottom: 30px;">Hello <strong>${name || 'Customer'}</strong>,</p>
-        <div style="background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
-          <p style="font-size: 16px; line-height: 1.6; color: #374151;">
-            You didn't make Payment for your booking on <strong>${date || 'the requested date'}</strong>. Your order was <strong>Rejected</strong>.
-          </p>
-          <p style="font-size: 16px; margin-top: 20px; font-weight: bold; color: #b91c1c;">
-            Thank You for Visiting our Website.
-          </p>
-        </div>
-        <p style="margin-top: 30px; color: #991b1b; opacity: 0.7; font-size: 14px;">
-          Spoonful Restaurant &bull; Culinary Excellence
-        </p>
-      </div>
-    `;
-
-    // Notify each customer individually
-    const emailResults = [];
+    const rejectionHtml = `<div style="text-align: center;"><h1>Order Rejected</h1><p>Booking on ${date} was rejected.</p></div>`;
+    
     for (const email of emailsArray) {
-      try {
-        console.log(`📧 Attempting to send rejection email to: ${email}`);
-        const result = await emailService.sendEmail(email, 'Order Update ❌ - Spoonful Restaurant', rejectionHtml);
-
-        emailResults.push({ email, success: result.success, error: result.error });
-
-        if (result.success) {
-          console.log(`✅ Success: Rejection email sent to ${email}`);
-        } else {
-          console.error(`❌ Failure: Failed to send rejection email to ${email}. Error: ${result.error}`);
-        }
-      } catch (error) {
-        console.error(`❌ Error sending to ${email}:`, error.message);
-        emailResults.push({ email, success: false, error: error.message });
-      }
+      await emailService.sendEmail(email, 'Order Update ❌', rejectionHtml);
     }
 
-    const allSuccessful = emailResults.every(r => r.success);
-    const failedEmails = emailResults.filter(r => !r.success).map(r => r.email);
-
-
-
-    const responsePage = `
-      <html>
-        <body style="font-family: sans-serif; background-color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
-          <div style="background: white; padding: 50px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); text-align: center; border-top: 8px solid #ef4444;">
-            <div style="font-size: 70px; margin-bottom: 20px;">${allSuccessful ? '❌' : '⚠️'}</div>
-            <h1 style="color: #1e293b; margin-bottom: 10px;">${allSuccessful ? 'Order Rejected' : 'Rejected with Warnings'}</h1>
-            <p style="color: #64748b; font-size: 18px;">
-              ${allSuccessful
-        ? 'Order has been rejected and customer has been notified.'
-        : `Order was rejected, but emails failed to reach: ${failedEmails.join(', ')}`}
-            </p>
-            <div style="margin-top: 30px;">
-              <a href="javascript:window.close()" style="color: #ef4444; font-weight: bold; text-decoration: none;">Close Tab</a>
-            </div>
-          </div>
-        </body>
-      </html>
-    `;
-
-    res.send(responsePage);
+    res.send(`<h1>Order Rejected</h1><p>Customer has been notified.</p><a href="javascript:window.close()">Close Tab</a>`);
   } catch (error) {
-    console.error('Reject error:', error);
     res.status(500).send('<h1>Internal server error.</h1>');
   }
 };
 
-router.get('/reject', sendRejectResponse);
-router.post('/reject', sendRejectResponse);
+router.get('/order/reject', sendRejectResponse);
+router.post('/order/reject', sendRejectResponse);
 
 module.exports = router;

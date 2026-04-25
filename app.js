@@ -45,7 +45,7 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use('/api/order', apiRoutes);
+app.use('/api', apiRoutes);
 
 // 404 Handler
 app.use((req, res) => {
