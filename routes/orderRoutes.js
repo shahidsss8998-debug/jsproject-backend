@@ -1,41 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const nodemailer = require('nodemailer');
-
-// Nodemailer Transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
-
-// Helper to send emails
-const sendEmail = async (to, subject, html) => {
-  try {
-    console.log('📧 Attempting to send email to:', to);
-    console.log('📧 Subject:', subject);
-    console.log('📧 Using EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'NOT SET');
-    console.log('📧 Using EMAIL_PASS:', process.env.EMAIL_PASS ? 'Set (length: ' + process.env.EMAIL_PASS.length + ')' : 'NOT SET');
-
-    const result = await transporter.sendMail({
-      from: `"Spoonful Restaurant" <${process.env.EMAIL_USER}>`,
-      to: Array.isArray(to) ? to.join(',') : to,
-      subject,
-      html
-    });
-
-    console.log('✅ Email sent successfully:', result.messageId);
-    return true;
-  } catch (error) {
-    console.error('❌ EMAIL ERROR:', error);
-    console.error('❌ Error code:', error.code);
-    console.error('❌ Error response:', error.response);
-    console.error('❌ Error command:', error.command);
-    return false;
-  }
-};
+const emailService = require('../services/emailService');
 
 // GET /api/order/test -> Simple test route to confirm backend is working
 router.get('/test', (req, res) => {
@@ -121,12 +86,16 @@ router.post('/send-order', async (req, res) => {
       </div>
     `;
 
-    const success = await sendEmail(process.env.EMAIL_USER, `New Order from ${name}`, adminHtml);
+    const emailResult = await emailService.sendEmail(process.env.EMAIL_USER, `New Order from ${name}`, adminHtml);
 
-    if (success) {
+    if (emailResult.success) {
       res.status(200).json({ message: 'Order sent to admin' });
     } else {
-      res.status(500).json({ message: 'Failed to send email' });
+      console.error('❌ Failed to send admin email:', emailResult.error);
+      res.status(500).json({
+        message: 'Failed to send email',
+        debug: process.env.NODE_ENV === 'development' ? emailResult.error : undefined
+      });
     }
   } catch (error) {
     console.error('Order error:', error);
@@ -164,8 +133,20 @@ const sendApprovalResponse = async (req, res) => {
     `;
 
     // Notify each customer individually
+    const emailErrors = [];
     for (const email of emailsArray) {
-      await sendEmail(email.trim(), 'Your Order Successful ✅ - Spoonful Restaurant', approvalHtml);
+      try {
+        const result = await emailService.sendEmail(email.trim(), 'Your Order Successful ✅ - Spoonful Restaurant', approvalHtml);
+        if (!result.success) {
+          emailErrors.push({ email: email.trim(), error: result.error });
+        }
+      } catch (error) {
+        emailErrors.push({ email: email.trim(), error: error.message });
+      }
+    }
+
+    if (emailErrors.length > 0) {
+      console.error('❌ Some approval emails failed:', emailErrors);
     }
 
     const responsePage = `
@@ -220,8 +201,20 @@ const sendRejectResponse = async (req, res) => {
     `;
 
     // Notify each customer individually
+    const emailErrors = [];
     for (const email of emailsArray) {
-      await sendEmail(email.trim(), 'Order Update ❌ - Spoonful Restaurant', rejectionHtml);
+      try {
+        const result = await emailService.sendEmail(email.trim(), 'Order Update ❌ - Spoonful Restaurant', rejectionHtml);
+        if (!result.success) {
+          emailErrors.push({ email: email.trim(), error: result.error });
+        }
+      } catch (error) {
+        emailErrors.push({ email: email.trim(), error: error.message });
+      }
+    }
+
+    if (emailErrors.length > 0) {
+      console.error('❌ Some rejection emails failed:', emailErrors);
     }
 
     const responsePage = `

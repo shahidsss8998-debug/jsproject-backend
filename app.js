@@ -2,20 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const nodemailer = require('nodemailer');
+const emailService = require('./services/emailService');
 const apiRoutes = require('./routes/orderRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-
-// Email Transporter
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
 
 // Middleware
 app.use(cors({ origin: "*" }));
@@ -49,12 +40,10 @@ const connectDB = async () => {
 // Verify email transporter on startup
 const verifyEmailTransporter = async () => {
   try {
-    console.log('🔍 Verifying email transporter...');
-    await transporter.verify();
-    console.log('✅ Email transporter verified successfully');
+    await emailService.verify();
   } catch (error) {
-    console.error('❌ Email transporter verification failed:', error.message);
-    console.error('❌ Please check EMAIL_USER and EMAIL_PASS in environment variables');
+    console.error('❌ Email service initialization failed - server will continue but emails may not work');
+    console.error('❌ Please check EMAIL_USER and EMAIL_PASS environment variables');
   }
 };
 
@@ -63,4 +52,17 @@ verifyEmailTransporter();
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+  console.log('🛑 Received SIGINT, shutting down gracefully...');
+  emailService.close();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('🛑 Received SIGTERM, shutting down gracefully...');
+  emailService.close();
+  process.exit(0);
 });
