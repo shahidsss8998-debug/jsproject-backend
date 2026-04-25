@@ -14,15 +14,25 @@ const transporter = nodemailer.createTransport({
 // Helper to send emails
 const sendEmail = async (to, subject, html) => {
   try {
-    await transporter.sendMail({
+    console.log('📧 Attempting to send email to:', to);
+    console.log('📧 Subject:', subject);
+    console.log('📧 Using EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'NOT SET');
+    console.log('📧 Using EMAIL_PASS:', process.env.EMAIL_PASS ? 'Set (length: ' + process.env.EMAIL_PASS.length + ')' : 'NOT SET');
+
+    const result = await transporter.sendMail({
       from: `"Spoonful Restaurant" <${process.env.EMAIL_USER}>`,
       to: Array.isArray(to) ? to.join(',') : to,
       subject,
       html
     });
+
+    console.log('✅ Email sent successfully:', result.messageId);
     return true;
   } catch (error) {
-    console.error('Email error:', error);
+    console.error('❌ EMAIL ERROR:', error);
+    console.error('❌ Error code:', error.code);
+    console.error('❌ Error response:', error.response);
+    console.error('❌ Error command:', error.command);
     return false;
   }
 };
