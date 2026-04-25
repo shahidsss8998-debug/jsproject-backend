@@ -2,10 +2,10 @@ const express = require('express');
 const router = express.Router();
 const emailService = require('../services/emailService');
 
-// Define BASE_URL with fallback to prevent undefined URLs
+// Define BASE_URL with strict production fallback
 const BASE_URL = process.env.BASE_URL || 'https://spoonful-backend.onrender.com';
 
-console.log('📧 Order Routes - BASE_URL:', BASE_URL);
+console.log('🌐 Production BASE_URL:', BASE_URL);
 
 // GET /api/order/test -> Simple test route to confirm backend is working
 router.get('/test', (req, res) => {
@@ -94,12 +94,17 @@ router.post('/send-order', async (req, res) => {
     const emailResult = await emailService.sendEmail(process.env.EMAIL_USER, `New Order from ${name}`, adminHtml);
 
     if (emailResult.success) {
-      res.status(200).json({ message: 'Order sent to admin' });
+      console.log(`✅ Order email successfully sent to admin: ${process.env.EMAIL_USER}`);
+      return res.status(200).json({ 
+        message: 'Order sent to admin successfully' 
+      });
     } else {
-      console.error('❌ Failed to send admin email:', emailResult.error);
-      res.status(500).json({
-        message: 'Email sending failed',
-        error: emailResult.error || 'Unknown error'
+      // FAIL-SAFE: Still return 200 but with a warning message so user knows order was recorded
+      console.error('⚠️ FAIL-SAFE TRIGGERED: Admin email failed to send:', emailResult.error);
+      return res.status(200).json({
+        message: 'Order received but admin notification email failed. Please contact support.',
+        warning: 'Email failure',
+        error: emailResult.error
       });
     }
   } catch (error) {
@@ -155,11 +160,14 @@ const sendApprovalResponse = async (req, res) => {
     `;
 
     // Notify each customer individually
+    const emailResults = [];
     for (const email of emailsArray) {
       try {
         console.log(`📧 Attempting to send approval email to: ${email}`);
         const result = await emailService.sendEmail(email, 'Your Order Successful ✅ - Spoonful Restaurant', approvalHtml);
         
+        emailResults.push({ email, success: result.success, error: result.error });
+
         if (result.success) {
           console.log(`✅ Success: Approval email sent to ${email}`);
         } else {
@@ -167,8 +175,12 @@ const sendApprovalResponse = async (req, res) => {
         }
       } catch (error) {
         console.error(`❌ Error sending to ${email}:`, error.message);
+        emailResults.push({ email, success: false, error: error.message });
       }
     }
+
+    const allSuccessful = emailResults.every(r => r.success);
+    const failedEmails = emailResults.filter(r => !r.success).map(r => r.email);
 
 
 
@@ -176,9 +188,13 @@ const sendApprovalResponse = async (req, res) => {
       <html>
         <body style="font-family: sans-serif; background-color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
           <div style="background: white; padding: 50px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); text-align: center; border-top: 8px solid #22c55e;">
-            <div style="font-size: 70px; margin-bottom: 20px;">✅</div>
-            <h1 style="color: #1e293b; margin-bottom: 10px;">Order Approved</h1>
-            <p style="color: #64748b; font-size: 18px;">Success! The customer has been notified via email.</p>
+            <div style="font-size: 70px; margin-bottom: 20px;">${allSuccessful ? '✅' : '⚠️'}</div>
+            <h1 style="color: #1e293b; margin-bottom: 10px;">${allSuccessful ? 'Order Approved' : 'Approved with Warnings'}</h1>
+            <p style="color: #64748b; font-size: 18px;">
+              ${allSuccessful 
+                ? 'Success! The customer has been notified via email.' 
+                : `Order was approved, but emails failed to reach: ${failedEmails.join(', ')}`}
+            </p>
             <div style="margin-top: 30px;">
               <a href="javascript:window.close()" style="color: #22c55e; font-weight: bold; text-decoration: none;">Close Tab</a>
             </div>
@@ -241,11 +257,14 @@ const sendRejectResponse = async (req, res) => {
     `;
 
     // Notify each customer individually
+    const emailResults = [];
     for (const email of emailsArray) {
       try {
         console.log(`📧 Attempting to send rejection email to: ${email}`);
         const result = await emailService.sendEmail(email, 'Order Update ❌ - Spoonful Restaurant', rejectionHtml);
         
+        emailResults.push({ email, success: result.success, error: result.error });
+
         if (result.success) {
           console.log(`✅ Success: Rejection email sent to ${email}`);
         } else {
@@ -253,8 +272,12 @@ const sendRejectResponse = async (req, res) => {
         }
       } catch (error) {
         console.error(`❌ Error sending to ${email}:`, error.message);
+        emailResults.push({ email, success: false, error: error.message });
       }
     }
+
+    const allSuccessful = emailResults.every(r => r.success);
+    const failedEmails = emailResults.filter(r => !r.success).map(r => r.email);
 
 
 
@@ -262,9 +285,13 @@ const sendRejectResponse = async (req, res) => {
       <html>
         <body style="font-family: sans-serif; background-color: #f8fafc; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
           <div style="background: white; padding: 50px; border-radius: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); text-align: center; border-top: 8px solid #ef4444;">
-            <div style="font-size: 70px; margin-bottom: 20px;">❌</div>
-            <h1 style="color: #1e293b; margin-bottom: 10px;">Order Rejected</h1>
-            <p style="color: #64748b; font-size: 18px;">Order has been rejected and customer has been notified.</p>
+            <div style="font-size: 70px; margin-bottom: 20px;">${allSuccessful ? '❌' : '⚠️'}</div>
+            <h1 style="color: #1e293b; margin-bottom: 10px;">${allSuccessful ? 'Order Rejected' : 'Rejected with Warnings'}</h1>
+            <p style="color: #64748b; font-size: 18px;">
+              ${allSuccessful 
+                ? 'Order has been rejected and customer has been notified.' 
+                : `Order was rejected, but emails failed to reach: ${failedEmails.join(', ')}`}
+            </p>
             <div style="margin-top: 30px;">
               <a href="javascript:window.close()" style="color: #ef4444; font-weight: bold; text-decoration: none;">Close Tab</a>
             </div>
