@@ -95,8 +95,8 @@ router.post('/send-order', async (req, res) => {
 
     if (emailResult.success) {
       console.log(`✅ Order email successfully sent to admin: ${process.env.EMAIL_USER}`);
-      return res.status(200).json({ 
-        message: 'Order sent to admin successfully' 
+      return res.status(200).json({
+        message: 'Order sent to admin successfully'
       });
     } else {
       // FAIL-SAFE: Still return 200 but with a warning message so user knows order was recorded
@@ -127,9 +127,9 @@ const sendApprovalResponse = async (req, res) => {
     // Extract emails safely
     const emailsArray = emails
       ? decodeURIComponent(emails)
-          .split(',')
-          .map(e => e.trim())
-          .filter(e => e.length > 0)
+        .split(',')
+        .map(e => e.trim())
+        .filter(e => e.length > 0)
       : [];
 
     console.log('EXTRACTED EMAILS ARRAY:', emailsArray);
@@ -165,7 +165,7 @@ const sendApprovalResponse = async (req, res) => {
       try {
         console.log(`📧 Attempting to send approval email to: ${email}`);
         const result = await emailService.sendEmail(email, 'Your Order Successful ✅ - Spoonful Restaurant', approvalHtml);
-        
+
         emailResults.push({ email, success: result.success, error: result.error });
 
         if (result.success) {
@@ -191,9 +191,9 @@ const sendApprovalResponse = async (req, res) => {
             <div style="font-size: 70px; margin-bottom: 20px;">${allSuccessful ? '✅' : '⚠️'}</div>
             <h1 style="color: #1e293b; margin-bottom: 10px;">${allSuccessful ? 'Order Approved' : 'Approved with Warnings'}</h1>
             <p style="color: #64748b; font-size: 18px;">
-              ${allSuccessful 
-                ? 'Success! The customer has been notified via email.' 
-                : `Order was approved, but emails failed to reach: ${failedEmails.join(', ')}`}
+              ${allSuccessful
+        ? 'Success! The customer has been notified via email.'
+        : `Order was approved, but emails failed to reach: ${failedEmails.join(', ')}`}
             </p>
             <div style="margin-top: 30px;">
               <a href="javascript:window.close()" style="color: #22c55e; font-weight: bold; text-decoration: none;">Close Tab</a>
@@ -224,9 +224,9 @@ const sendRejectResponse = async (req, res) => {
     // Extract emails safely
     const emailsArray = emails
       ? decodeURIComponent(emails)
-          .split(',')
-          .map(e => e.trim())
-          .filter(e => e.length > 0)
+        .split(',')
+        .map(e => e.trim())
+        .filter(e => e.length > 0)
       : [];
 
     console.log('EXTRACTED EMAILS ARRAY:', emailsArray);
@@ -262,7 +262,7 @@ const sendRejectResponse = async (req, res) => {
       try {
         console.log(`📧 Attempting to send rejection email to: ${email}`);
         const result = await emailService.sendEmail(email, 'Order Update ❌ - Spoonful Restaurant', rejectionHtml);
-        
+
         emailResults.push({ email, success: result.success, error: result.error });
 
         if (result.success) {
@@ -288,9 +288,9 @@ const sendRejectResponse = async (req, res) => {
             <div style="font-size: 70px; margin-bottom: 20px;">${allSuccessful ? '❌' : '⚠️'}</div>
             <h1 style="color: #1e293b; margin-bottom: 10px;">${allSuccessful ? 'Order Rejected' : 'Rejected with Warnings'}</h1>
             <p style="color: #64748b; font-size: 18px;">
-              ${allSuccessful 
-                ? 'Order has been rejected and customer has been notified.' 
-                : `Order was rejected, but emails failed to reach: ${failedEmails.join(', ')}`}
+              ${allSuccessful
+        ? 'Order has been rejected and customer has been notified.'
+        : `Order was rejected, but emails failed to reach: ${failedEmails.join(', ')}`}
             </p>
             <div style="margin-top: 30px;">
               <a href="javascript:window.close()" style="color: #ef4444; font-weight: bold; text-decoration: none;">Close Tab</a>
