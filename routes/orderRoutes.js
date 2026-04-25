@@ -93,8 +93,8 @@ router.post('/send-order', async (req, res) => {
     } else {
       console.error('❌ Failed to send admin email:', emailResult.error);
       res.status(500).json({
-        message: 'Failed to send email',
-        debug: process.env.NODE_ENV === 'development' ? emailResult.error : undefined
+        message: 'Email sending failed',
+        error: emailResult.error || 'Unknown error'
       });
     }
   } catch (error) {

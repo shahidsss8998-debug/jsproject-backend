@@ -8,6 +8,11 @@ const apiRoutes = require('./routes/orderRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  console.error('❌ Missing email credentials: EMAIL_USER and EMAIL_PASS must be set in environment variables');
+  process.exit(1);
+}
+
 // Middleware
 app.use(cors({ origin: "*" }));
 app.use(express.json());

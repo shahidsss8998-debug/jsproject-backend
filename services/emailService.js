@@ -32,11 +32,13 @@ class EmailService {
         user: emailUser,
         pass: emailPass
       },
-      // Additional Gmail-specific settings for stability
       secure: true,
-      pool: true, // Use pooled connections
+      pool: true,
       maxConnections: 5,
-      maxMessages: 100
+      maxMessages: 100,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000
     });
 
     this.isInitialized = true;
@@ -52,10 +54,11 @@ class EmailService {
 
       console.log('🔍 Verifying email transporter connection...');
       const result = await this.transporter.verify();
-      console.log('✅ Email transporter verified successfully');
+      console.log('✅ SMTP READY - Email transporter verified successfully');
       return true;
     } catch (error) {
       console.error('❌ Email transporter verification failed:', error.message);
+      console.error('❌ EMAIL ERROR FULL DETAILS:', error);
       console.error('❌ Error code:', error.code);
       console.error('❌ Error response:', error.response);
       throw error;
@@ -97,22 +100,24 @@ class EmailService {
 
       } catch (error) {
         lastError = error;
+        console.error('❌ EMAIL ERROR FULL DETAILS:', error);
         console.error(`❌ Email attempt ${attempt}/${maxRetries} failed:`, error.message);
 
-        // Log detailed error information
         if (error.code) console.error('❌ Error code:', error.code);
         if (error.response) console.error('❌ Error response:', error.response);
         if (error.command) console.error('❌ Error command:', error.command);
 
-        // Don't retry on authentication errors
         if (error.code === 'EAUTH') {
           console.error('❌ Authentication failed - not retrying');
           break;
         }
 
-        // Wait before retry (except on last attempt)
+        if (error.code === 'ECONNECTION' || error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') {
+          console.error('❌ Connection-related SMTP error detected, retrying if possible');
+        }
+
         if (attempt < maxRetries) {
-          const delay = attempt * 1000; // 1s, 2s, 3s delays
+          const delay = 500 * attempt; // 500ms, 1000ms, 1500ms
           console.log(`⏳ Waiting ${delay}ms before retry...`);
           await new Promise(resolve => setTimeout(resolve, delay));
         }
@@ -123,9 +128,9 @@ class EmailService {
     console.error('❌ All email attempts failed');
     return {
       success: false,
-      error: lastError.message,
-      code: lastError.code,
-      response: lastError.response
+      error: lastError && lastError.message ? lastError.message : String(lastError),
+      code: lastError && lastError.code,
+      response: lastError && lastError.response
     };
   }
 
