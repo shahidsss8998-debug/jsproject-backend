@@ -1,19 +1,36 @@
-require('dotenv').config();
-const nodemailer = require('nodemailer');
+// Load environment variables only in development
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
-});
+const emailService = require('./services/emailService');
 
-transporter.verify((error, success) => {
-  if (error) {
-    console.log('Verify error:', error);
-  } else {
-    console.log('Server is ready to take our messages');
+async function testEmail() {
+  try {
+    console.log('🧪 Testing email service...');
+
+    // Verify transporter first
+    await emailService.verify();
+
+    // Send test email
+    const result = await emailService.sendEmail(
+      process.env.EMAIL_USER,
+      'Test Email from Spoonful Backend',
+      '<h1>✅ Email Test Successful!</h1><p>Your Gmail configuration is working correctly.</p><p>Timestamp: ' + new Date().toISOString() + '</p>'
+    );
+
+    if (result.success) {
+      console.log('✅ Test email sent successfully!');
+      console.log('✅ Message ID:', result.messageId);
+    } else {
+      console.log('❌ Test email failed:', result.error);
+      process.exit(1);
+    }
+
+  } catch (error) {
+    console.error('❌ Email test failed:', error.message);
+    process.exit(1);
   }
-  process.exit();
-});
+}
+
+testEmail();
