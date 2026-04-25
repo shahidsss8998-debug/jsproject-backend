@@ -127,10 +127,13 @@ router.post('/send-order', async (req, res) => {
   }
 });
 
-// GET /api/order/approve -> Approve order and notify customers
-router.get('/approve', async (req, res) => {
+const extractOrderParams = (req) => {
+  return req.method === 'POST' ? req.body : req.query;
+};
+
+const sendApprovalResponse = async (req, res) => {
   try {
-    const { emails, name, date, time, place } = req.query;
+    const { emails, name, date, time, place } = extractOrderParams(req);
     const emailsArray = emails ? emails.split(',') : [];
 
     const approvalHtml = `
@@ -177,12 +180,15 @@ router.get('/approve', async (req, res) => {
     console.error('Approve error:', error);
     res.status(500).send('<h1>Internal server error.</h1>');
   }
-});
+};
 
-// GET /api/order/reject -> Reject order and notify customers
-router.get('/reject', async (req, res) => {
+router.get('/approve', sendApprovalResponse);
+router.post('/approve', sendApprovalResponse);
+
+// POST /api/order/reject -> Reject order and notify customers
+const sendRejectResponse = async (req, res) => {
   try {
-    const { emails, name, date, time } = req.query;
+    const { emails, name, date, time } = extractOrderParams(req);
     const emailsArray = emails ? emails.split(',') : [];
 
     const rejectionHtml = `
@@ -229,6 +235,9 @@ router.get('/reject', async (req, res) => {
     console.error('Reject error:', error);
     res.status(500).send('<h1>Internal server error.</h1>');
   }
-});
+};
+
+router.get('/reject', sendRejectResponse);
+router.post('/reject', sendRejectResponse);
 
 module.exports = router;
