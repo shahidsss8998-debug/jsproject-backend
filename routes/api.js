@@ -103,13 +103,13 @@ router.post('/send-order', async (req, res) => {
             <tr>
               <td align="center" style="padding: 10px;">
                 <a href="${process.env.BASE_URL}/api/order/approve?emails=${emails.join(',')}&name=${encodeURIComponent(name)}&date=${date}&time=${time}&place=${encodeURIComponent(place)}" 
-                   style="display: inline-block; background-color: #22c55e; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                   style="display: inline-block; background-color: #22c55e; color: white; padding: 14px 28px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 6px rgba(34, 197, 94, 0.2); transition: all 0.3s ease;">
                    ✅ Approve
                 </a>
               </td>
               <td align="center" style="padding: 10px;">
                 <a href="${process.env.BASE_URL}/api/order/reject?emails=${emails.join(',')}&name=${encodeURIComponent(name)}&date=${date}&time=${time}&place=${encodeURIComponent(place)}" 
-                   style="display: inline-block; background-color: #ef4444; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                   style="display: inline-block; background-color: #ef4444; color: white; padding: 14px 28px; text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.2); transition: all 0.3s ease;">
                    ❌ Reject
                 </a>
               </td>
