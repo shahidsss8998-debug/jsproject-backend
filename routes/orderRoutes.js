@@ -10,8 +10,8 @@ console.log('📧 Order Routes - BASE_URL:', BASE_URL);
 // GET /api/order/test -> Simple test route to confirm backend is working
 router.get('/test', (req, res) => {
   console.log('GET /api/order/test hit - Testing backend health');
-  res.json({ 
-    message: 'Backend is working!', 
+  res.json({
+    message: 'Backend is working!',
     timestamp: new Date().toISOString(),
     routes: ['/api/order/test', '/api/order/send-order', '/api/order/approve', '/api/order/reject', '/api/order/test-email']
   });
@@ -74,13 +74,13 @@ router.post('/send-order', async (req, res) => {
           <table align="center" cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
             <tr>
               <td align="center" style="padding: 10px;">
-                <a href="${BASE_URL}/api/order/approve?emails=${emails.join(',')}&name=${encodeURIComponent(name)}&date=${date}&time=${time}&place=${encodeURIComponent(place)}"
+                <a href="${BASE_URL}/api/order/approve?emails=${encodeURIComponent(emails.join(','))}&name=${encodeURIComponent(name)}&date=${date}&time=${time}&place=${encodeURIComponent(place)}"
                    style="display: inline-block; background-color: #22c55e; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
                    ✅ Approve
                 </a>
               </td>
               <td align="center" style="padding: 10px;">
-                <a href="${BASE_URL}/api/order/reject?emails=${emails.join(',')}&name=${encodeURIComponent(name)}&date=${date}&time=${time}&place=${encodeURIComponent(place)}"
+                <a href="${BASE_URL}/api/order/reject?emails=${encodeURIComponent(emails.join(','))}&name=${encodeURIComponent(name)}&date=${date}&time=${time}&place=${encodeURIComponent(place)}"
                    style="display: inline-block; background-color: #ef4444; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
                    ❌ Reject
                 </a>
@@ -113,10 +113,27 @@ const extractOrderParams = (req) => {
 };
 
 const sendApprovalResponse = async (req, res) => {
-  console.log(`${req.method} /api/order/approve hit - Method: ${req.method}, Params:`, extractOrderParams(req));
+  console.log('--- DEBUG: APPROVE ROUTE HIT ---');
+  console.log('QUERY PARAMS:', req.query);
+
   try {
-    const { emails, name, date, time, place } = extractOrderParams(req);
-    const emailsArray = emails ? emails.split(',') : [];
+    const { emails, name, date, time, place } = req.query;
+
+    // Extract emails safely
+    const emailsArray = emails
+      ? decodeURIComponent(emails)
+          .split(',')
+          .map(e => e.trim())
+          .filter(e => e.length > 0)
+      : [];
+
+    console.log('EXTRACTED EMAILS ARRAY:', emailsArray);
+
+    // Validation
+    if (emailsArray.length === 0) {
+      console.error('❌ No valid customer email found');
+      return res.status(400).send('<h1>Error: No valid customer email found.</h1>');
+    }
 
     const approvalHtml = `
       <div style="background-color: #f0fdf4; color: #166534; padding: 40px; font-family: sans-serif; border-radius: 16px; border: 1px solid #bbf7d0; text-align: center; max-width: 600px; margin: 20px auto;">
@@ -138,21 +155,22 @@ const sendApprovalResponse = async (req, res) => {
     `;
 
     // Notify each customer individually
-    const emailErrors = [];
     for (const email of emailsArray) {
       try {
-        const result = await emailService.sendEmail(email.trim(), 'Your Order Successful ✅ - Spoonful Restaurant', approvalHtml);
-        if (!result.success) {
-          emailErrors.push({ email: email.trim(), error: result.error });
+        console.log(`📧 Attempting to send approval email to: ${email}`);
+        const result = await emailService.sendEmail(email, 'Your Order Successful ✅ - Spoonful Restaurant', approvalHtml);
+        
+        if (result.success) {
+          console.log(`✅ Success: Approval email sent to ${email}`);
+        } else {
+          console.error(`❌ Failure: Failed to send approval email to ${email}. Error: ${result.error}`);
         }
       } catch (error) {
-        emailErrors.push({ email: email.trim(), error: error.message });
+        console.error(`❌ Error sending to ${email}:`, error.message);
       }
     }
 
-    if (emailErrors.length > 0) {
-      console.error('❌ Some approval emails failed:', emailErrors);
-    }
+
 
     const responsePage = `
       <html>
@@ -181,10 +199,27 @@ router.post('/approve', sendApprovalResponse);
 
 // POST /api/order/reject -> Reject order and notify customers
 const sendRejectResponse = async (req, res) => {
-  console.log(`${req.method} /api/order/reject hit - Method: ${req.method}, Params:`, extractOrderParams(req));
+  console.log('--- DEBUG: REJECT ROUTE HIT ---');
+  console.log('QUERY PARAMS:', req.query);
+
   try {
-    const { emails, name, date, time } = extractOrderParams(req);
-    const emailsArray = emails ? emails.split(',') : [];
+    const { emails, name, date, time } = req.query;
+
+    // Extract emails safely
+    const emailsArray = emails
+      ? decodeURIComponent(emails)
+          .split(',')
+          .map(e => e.trim())
+          .filter(e => e.length > 0)
+      : [];
+
+    console.log('EXTRACTED EMAILS ARRAY:', emailsArray);
+
+    // Validation
+    if (emailsArray.length === 0) {
+      console.error('❌ No valid customer email found');
+      return res.status(400).send('<h1>Error: No valid customer email found.</h1>');
+    }
 
     const rejectionHtml = `
       <div style="background-color: #fef2f2; color: #991b1b; padding: 40px; font-family: sans-serif; border-radius: 16px; border: 1px solid #fecaca; text-align: center; max-width: 600px; margin: 20px auto;">
@@ -206,21 +241,22 @@ const sendRejectResponse = async (req, res) => {
     `;
 
     // Notify each customer individually
-    const emailErrors = [];
     for (const email of emailsArray) {
       try {
-        const result = await emailService.sendEmail(email.trim(), 'Order Update ❌ - Spoonful Restaurant', rejectionHtml);
-        if (!result.success) {
-          emailErrors.push({ email: email.trim(), error: result.error });
+        console.log(`📧 Attempting to send rejection email to: ${email}`);
+        const result = await emailService.sendEmail(email, 'Order Update ❌ - Spoonful Restaurant', rejectionHtml);
+        
+        if (result.success) {
+          console.log(`✅ Success: Rejection email sent to ${email}`);
+        } else {
+          console.error(`❌ Failure: Failed to send rejection email to ${email}. Error: ${result.error}`);
         }
       } catch (error) {
-        emailErrors.push({ email: email.trim(), error: error.message });
+        console.error(`❌ Error sending to ${email}:`, error.message);
       }
     }
 
-    if (emailErrors.length > 0) {
-      console.error('❌ Some rejection emails failed:', emailErrors);
-    }
+
 
     const responsePage = `
       <html>
