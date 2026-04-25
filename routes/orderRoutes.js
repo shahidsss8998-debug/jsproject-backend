@@ -2,6 +2,11 @@ const express = require('express');
 const router = express.Router();
 const emailService = require('../services/emailService');
 
+// Define BASE_URL with fallback to prevent undefined URLs
+const BASE_URL = process.env.BASE_URL || 'https://spoonful-backend.onrender.com';
+
+console.log('📧 Order Routes - BASE_URL:', BASE_URL);
+
 // GET /api/order/test -> Simple test route to confirm backend is working
 router.get('/test', (req, res) => {
   console.log('GET /api/order/test hit - Testing backend health');
@@ -69,13 +74,13 @@ router.post('/send-order', async (req, res) => {
           <table align="center" cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
             <tr>
               <td align="center" style="padding: 10px;">
-                <a href="${process.env.BASE_URL}/api/order/approve?emails=${emails.join(',')}&name=${encodeURIComponent(name)}&date=${date}&time=${time}&place=${encodeURIComponent(place)}"
+                <a href="${BASE_URL}/api/order/approve?emails=${emails.join(',')}&name=${encodeURIComponent(name)}&date=${date}&time=${time}&place=${encodeURIComponent(place)}"
                    style="display: inline-block; background-color: #22c55e; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
                    ✅ Approve
                 </a>
               </td>
               <td align="center" style="padding: 10px;">
-                <a href="${process.env.BASE_URL}/api/order/reject?emails=${emails.join(',')}&name=${encodeURIComponent(name)}&date=${date}&time=${time}&place=${encodeURIComponent(place)}"
+                <a href="${BASE_URL}/api/order/reject?emails=${emails.join(',')}&name=${encodeURIComponent(name)}&date=${date}&time=${time}&place=${encodeURIComponent(place)}"
                    style="display: inline-block; background-color: #ef4444; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px;">
                    ❌ Reject
                 </a>

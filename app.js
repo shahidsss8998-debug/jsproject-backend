@@ -12,6 +12,9 @@ const apiRoutes = require('./routes/orderRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Define BASE_URL with fallback
+const BASE_URL = process.env.BASE_URL || 'https://spoonful-backend.onrender.com';
+
 // Environment validation with detailed logging
 console.log('🔧 Starting Spoonful Backend...');
 console.log('🔧 NODE_ENV:', process.env.NODE_ENV || 'development');
@@ -19,7 +22,7 @@ console.log('🔧 PORT:', PORT);
 console.log('🔧 EMAIL_USER:', process.env.EMAIL_USER ? `${process.env.EMAIL_USER} (length: ${process.env.EMAIL_USER.length})` : 'NOT SET');
 console.log('🔧 EMAIL_PASS:', process.env.EMAIL_PASS ? `Set (length: ${process.env.EMAIL_PASS.length})` : 'NOT SET');
 console.log('🔧 MONGODB_URI:', process.env.MONGODB_URI ? 'Set' : 'NOT SET');
-console.log('🔧 BASE_URL:', process.env.BASE_URL || 'NOT SET');
+console.log('🔧 BASE_URL:', BASE_URL);
 
 if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
   console.error('❌ CRITICAL: Missing email credentials!');
