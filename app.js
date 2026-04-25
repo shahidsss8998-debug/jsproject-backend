@@ -10,10 +10,11 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors({ origin: "*" }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Log incoming requests
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`);
+  console.log(`${req.method} ${req.path} - Content-Type: ${req.headers['content-type'] || 'none'}`);
   next();
 });
 
