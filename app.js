@@ -90,9 +90,6 @@ const verifyEmailTransporter = async () => {
     console.error('❌ Check Render environment variables and redeploy if needed');
   }
 };
-    console.error('❌ Please check EMAIL_USER and EMAIL_PASS environment variables');
-  }
-};
 
 connectDB();
 verifyEmailTransporter();
